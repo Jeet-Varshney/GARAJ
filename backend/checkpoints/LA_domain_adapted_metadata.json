@@ -1,0 +1,19 @@
+{
+  "dataset_version": "garaj_domain_v1",
+  "manifest_path": "/home/jyno/Projects/Garaj/backend/tmp_test_data/splits/train.json",
+  "base_checkpoint": "/home/jyno/Projects/Garaj/backend/checkpoints/LA_model.pth",
+  "output_checkpoint": "/home/jyno/Projects/Garaj/backend/tmp_test_data/checkpoints/LA_domain_adapted.pth",
+  "experiment": "Experiment_A_Frozen_XLSR",
+  "seed": 42,
+  "epochs": 1,
+  "batch_size": 2,
+  "learning_rate": 0.0001,
+  "optimizer": "AdamW",
+  "scheduler": "CosineAnnealingLR",
+  "loss_function": "weighted_ce",
+  "best_val_loss": 0.7189,
+  "best_val_accuracy_pct": 50.0,
+  "model_architecture": "W2V2-AASIST",
+  "timestamp": "2026-09-15 19:07:21",
+  "device": "cpu"
+}

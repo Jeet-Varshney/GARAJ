@@ -44,7 +44,7 @@ export const FloatingDock: React.FC<FloatingDockProps> = ({
               ? 'bg-zinc-950 text-white shadow-xs font-bold'
               : 'bg-zinc-100 text-zinc-700 hover:text-zinc-950 hover:bg-zinc-200'
           }`}
-          title={isMonitoring ? 'Pause Monitoring' : 'Start Monitoring'}
+          title={isMonitoring ? 'Pause Stream' : 'Start Stream'}
         >
           {isMonitoring ? (
             <Pause className="w-4 h-4 text-white fill-current" />
@@ -75,19 +75,19 @@ export const FloatingDock: React.FC<FloatingDockProps> = ({
 
         <div className="w-px h-6 bg-zinc-200 mx-0.5" />
 
-        {/* Deepfake Attack Simulator Button */}
+        {/* Test Signal Button */}
         <button
           onClick={onToggleAttack}
           className={`relative group p-3 rounded-full transition-all duration-200 cursor-pointer ${
             isAttackSimulated
-              ? 'bg-red-600 text-white shadow-xs'
+              ? 'bg-amber-600 text-white shadow-xs'
               : 'bg-zinc-100 text-zinc-700 hover:text-zinc-950 hover:bg-zinc-200'
           }`}
-          title="Simulate Attack"
+          title="Test Signal"
         >
           <Zap className={`w-4 h-4 ${isAttackSimulated ? 'animate-bounce text-white' : 'text-zinc-950'}`} />
           <span className="absolute -top-10 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-zinc-950 text-white text-[10px] font-mono rounded-md shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap font-bold">
-            {isAttackSimulated ? 'Attack Active' : 'Simulate Deepfake'}
+            {isAttackSimulated ? 'Stop Test Signal' : 'Test Signal'}
           </span>
         </button>
 
@@ -129,7 +129,7 @@ export const FloatingDock: React.FC<FloatingDockProps> = ({
                 ? 'bg-zinc-950 text-white shadow-xs'
                 : 'text-zinc-600 hover:text-zinc-950'
             }`}
-            title="Mobile Presentation (4 Parallel Screens)"
+            title="Mobile Presentation View"
           >
             <Smartphone className="w-3.5 h-3.5" />
           </button>

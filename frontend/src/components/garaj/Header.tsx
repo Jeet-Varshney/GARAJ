@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Radio, Monitor, Smartphone, AlertTriangle } from 'lucide-react';
+import { Zap, Radio, Monitor, Smartphone, AlertTriangle } from 'lucide-react';
 import type { LayoutViewMode } from '../../types/garaj';
 
 interface HeaderProps {
@@ -22,12 +22,12 @@ export const Header: React.FC<HeaderProps> = ({
       isAttackSimulated ? 'bg-red-50/40 border-red-200' : 'bg-white border-zinc-200'
     }`}>
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-        {/* Brand */}
+        {/* Brand with GARAJ Lightning Logo */}
         <div className="flex items-center gap-3">
           <div className={`w-9 h-9 rounded-xl text-white flex items-center justify-center font-extrabold shadow-sm shrink-0 transition-colors ${
             isAttackSimulated ? 'bg-red-600' : 'bg-zinc-950'
           }`}>
-            <Shield className="w-4.5 h-4.5" />
+            <Zap className="w-5 h-5 fill-current" />
           </div>
 
           <div>
@@ -38,20 +38,22 @@ export const Header: React.FC<HeaderProps> = ({
               <span
                 className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-mono font-bold border transition-colors ${
                   isAttackSimulated
-                    ? 'bg-red-100 text-red-700 border-red-300 animate-pulse'
-                    : 'bg-zinc-100 text-zinc-900 border-zinc-200'
+                    ? 'bg-amber-100 text-amber-800 border-amber-300'
+                    : isMonitoring
+                    ? 'bg-zinc-100 text-zinc-900 border-zinc-200'
+                    : 'bg-zinc-100 text-zinc-500 border-zinc-200'
                 }`}
               >
                 <span className={`w-2 h-2 rounded-full animate-pulse ${
-                  isAttackSimulated ? 'bg-red-600' : 'bg-zinc-950'
+                  isAttackSimulated ? 'bg-amber-500' : isMonitoring ? 'bg-emerald-500' : 'bg-zinc-400'
                 }`} />
-                {isAttackSimulated ? 'SPOOF ATTACK ACTIVE' : 'Live Monitoring'}
+                {isAttackSimulated ? 'TEST SIGNAL ACTIVE' : isMonitoring ? 'Live Protection' : 'IDLE'}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Center: Device Mode Switcher (With Custom Animated Black Circle Fill Effect) */}
+        {/* Center: Device Mode Switcher */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => onViewModeChange('desktop-3col')}
@@ -77,19 +79,19 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-3 font-mono">
           <div className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs border font-mono transition-colors ${
             isAttackSimulated
-              ? 'bg-red-100 text-red-700 border-red-300 font-extrabold'
+              ? 'bg-amber-50 text-amber-800 border-amber-300 font-extrabold'
               : 'bg-zinc-100 border-zinc-200 text-zinc-700'
           }`}>
             {isAttackSimulated ? (
-              <AlertTriangle className="w-3.5 h-3.5 text-red-600 animate-bounce" />
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600 animate-bounce" />
             ) : (
               <Radio className="w-3.5 h-3.5 text-zinc-950" />
             )}
-            <span className={`font-bold uppercase ${isAttackSimulated ? 'text-red-700' : 'text-zinc-950'}`}>
-              {isAttackSimulated ? 'SPOOF DETECTED' : isMonitoring ? 'CONNECTED' : 'IDLE'}
+            <span className={`font-bold uppercase ${isAttackSimulated ? 'text-amber-800' : 'text-zinc-950'}`}>
+              {isAttackSimulated ? 'TEST SIGNAL' : isMonitoring ? 'CONNECTED' : 'IDLE'}
             </span>
-            <span className={isAttackSimulated ? 'text-red-300' : 'text-zinc-300'}>|</span>
-            <span className={`font-semibold ${isAttackSimulated ? 'text-red-800' : 'text-zinc-950'}`}>{chunkCount} chunks</span>
+            <span className={isAttackSimulated ? 'text-amber-300' : 'text-zinc-300'}>|</span>
+            <span className={`font-semibold ${isAttackSimulated ? 'text-amber-900' : 'text-zinc-950'}`}>{chunkCount} chunks</span>
           </div>
         </div>
       </div>

@@ -1,0 +1,73 @@
+{
+  "idle_metrics": {
+    "sys_cpu_idle_avg": 26.89,
+    "proc_cpu_idle_avg": 0.1,
+    "ram_baseline_mb": 457.32
+  },
+  "feat_breakdown": {
+    "stft_ms_avg": 3.225,
+    "spectral_ms_avg": 4.15,
+    "lfcc_ms_avg": 20.517,
+    "cqcc_ms_avg": 49.141,
+    "prosodic_ms_avg": 8.188,
+    "energy_ms_avg": 0.478,
+    "total_feat_ms_avg": 85.698,
+    "total_feat_ms_p50": 85.07,
+    "total_feat_ms_p95": 99.474,
+    "total_feat_ms_p99": 111.593,
+    "feat_cpu_percent": 98.5,
+    "ram_mb": 222.03
+  },
+  "config_a_w2v2_aasist": {
+    "config": "Config A: W2V2-AASIST Baseline",
+    "duration_sec": 61.42,
+    "iterations": 31,
+    "cpu_percent_avg": 362.4,
+    "ram_baseline_mb": 1525.98,
+    "ram_peak_mb": 1526.21,
+    "prep_ms_avg": 0.233,
+    "w2v2_ms_avg": 1808.473,
+    "aasist_ms_avg": 172.402,
+    "total_ms_avg": 1981.108,
+    "total_ms_p50": 2032.338,
+    "total_ms_p95": 2439.111,
+    "total_ms_p99": 2626.712,
+    "w2v2_ms_p50": 1877.837,
+    "aasist_ms_p50": 162.087
+  },
+  "config_b_acoustic_only": {
+    "config": "Config B: Acoustic-Only",
+    "duration_sec": 60.03,
+    "iterations": 1183,
+    "cpu_percent_avg": 100.01,
+    "ram_baseline_mb": 374.08,
+    "ram_peak_mb": 374.11,
+    "prep_ms_avg": 0.073,
+    "feat_ms_avg": 50.288,
+    "classifier_ms_avg": 0.358,
+    "total_ms_avg": 50.72,
+    "total_ms_p50": 50.408,
+    "total_ms_p95": 53.128,
+    "total_ms_p99": 55.015,
+    "feat_ms_p50": 50.003
+  },
+  "config_c_fusion": {
+    "config": "Config C: C3 Fusion Model",
+    "duration_sec": 60.08,
+    "iterations": 36,
+    "cpu_percent_avg": 360.07,
+    "ram_baseline_mb": 1396.59,
+    "ram_peak_mb": 1396.61,
+    "prep_ms_avg": 0.032,
+    "acoustic_feat_ms_avg": 51.634,
+    "w2v2_aasist_ms_avg": 1617.057,
+    "fusion_head_ms_avg": 0.129,
+    "total_ms_avg": 1668.851,
+    "total_ms_p50": 1646.089,
+    "total_ms_p95": 1837.533,
+    "total_ms_p99": 1856.483,
+    "w2v2_aasist_ms_p50": 1594.69,
+    "acoustic_feat_ms_p50": 50.354
+  },
+  "websocket_streaming": {}
+}

@@ -1,0 +1,16 @@
+# PyTorch Model Checkpoints
+checkpoints/*.pth
+checkpoints/*.pt
+checkpoints/*.bin
+checkpoints/*.onnx
+*.pth
+*.pt
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+tmp_cache/

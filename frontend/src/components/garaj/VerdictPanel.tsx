@@ -9,7 +9,6 @@ import {
   Play,
   Pause,
   Zap,
-  ArrowUpRight,
   Activity,
 } from 'lucide-react';
 import type {
@@ -53,12 +52,12 @@ export const VerdictPanel: React.FC<VerdictPanelProps> = ({
         ? 'bg-red-50/30 border-red-400 shadow-red-100/80 ring-1 ring-red-400/50'
         : 'bg-white border-zinc-200'
     }`}>
-      {/* Critical Alert Banner when Fake / Spoof Voice Detected */}
+      {/* Critical Alert Banner when Synthetic / Spoof Voice Detected */}
       {isSynthetic && (
         <div className="bg-red-600 text-white font-mono text-[11px] font-extrabold py-2 px-3.5 rounded-xl flex items-center justify-between shadow-sm animate-pulse">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-white shrink-0" />
-            <span>FAKE VOICE / SPOOF DETECTED</span>
+            <span>SYNTHETIC / SPOOF VOICE DETECTED</span>
           </div>
           <span className="bg-red-700 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider">CRITICAL ALERT</span>
         </div>
@@ -73,13 +72,13 @@ export const VerdictPanel: React.FC<VerdictPanelProps> = ({
               VOICE AUTHENTICITY VERDICT
             </h2>
             <p className="text-[11px] text-zinc-500 font-sans font-normal">
-              Neural biometric vector analysis
+              Real-time W2V2-AASIST detection pipeline
             </p>
           </div>
         </div>
 
         <span className="text-xs font-bold text-zinc-800 bg-zinc-100 border border-zinc-200 px-3 py-1 rounded-full">
-          MODEL V4.2
+          W2V2-AASIST
         </span>
       </div>
 
@@ -104,8 +103,8 @@ export const VerdictPanel: React.FC<VerdictPanelProps> = ({
               strokeWidth="12"
               strokeDasharray={circumference}
               initial={{ strokeDashoffset: circumference }}
-              animate={{ strokeDashoffset }}
-              transition={{ duration: 1.2, ease: 'easeOut' }}
+              animate={{ strokeDashoffset: score > 0 ? strokeDashoffset : circumference }}
+              transition={{ duration: 0.8, ease: 'easeOut' }}
               strokeLinecap="round"
               fill="transparent"
             />
@@ -159,11 +158,11 @@ export const VerdictPanel: React.FC<VerdictPanelProps> = ({
         </motion.div>
       </div>
 
-      {/* Security Diagnostic Checks (Clean Light Boxes) */}
+      {/* Security Diagnostic Checks */}
       <div className="space-y-2.5 border-t border-zinc-200 pt-5 font-mono">
         <div className="flex items-center justify-between text-xs text-zinc-950 font-bold mb-2">
-          <span>VERIFIED CHECKS</span>
-          <span className="text-zinc-500 font-normal">4 VERIFIED</span>
+          <span>REAL DIAGNOSTIC CHECKS</span>
+          <span className="text-zinc-500 font-normal">BACKEND BOUND</span>
         </div>
 
         <div className="space-y-2">
@@ -212,8 +211,8 @@ export const VerdictPanel: React.FC<VerdictPanelProps> = ({
           onClick={onToggleMonitoring}
           className={`w-full py-3.5 px-6 rounded-full font-bold text-xs tracking-wider flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-sm ${
             isMonitoring
-              ? 'bg-zinc-950 text-white hover:bg-zinc-800'
-              : 'bg-zinc-900 text-white hover:bg-zinc-800'
+              ? 'bg-red-600 text-white hover:bg-red-700'
+              : 'bg-zinc-950 text-white hover:bg-zinc-800'
           }`}
         >
           {isMonitoring ? (
@@ -233,13 +232,13 @@ export const VerdictPanel: React.FC<VerdictPanelProps> = ({
           onClick={onToggleAttack}
           className={`w-full py-3 px-4 rounded-full font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs ${
             isAttackSimulated
-              ? 'bg-red-50 text-red-600 border border-red-200'
+              ? 'bg-amber-50 text-amber-800 border border-amber-300'
               : 'bg-white hover:bg-zinc-100 text-zinc-950 border border-zinc-300'
           }`}
         >
-          <Zap className={`w-4 h-4 ${isAttackSimulated ? 'animate-bounce text-red-600' : 'text-zinc-950'}`} />
+          <Zap className={`w-4 h-4 ${isAttackSimulated ? 'text-amber-600' : 'text-zinc-950'}`} />
           <span>
-            {isAttackSimulated ? 'ATTACK SIMULATION ACTIVE' : 'SIMULATE DEEPFAKE ATTACK'}
+            {isAttackSimulated ? 'STOP TEST SIGNAL' : 'RUN TEST SIGNAL'}
           </span>
         </button>
       </div>
@@ -248,12 +247,9 @@ export const VerdictPanel: React.FC<VerdictPanelProps> = ({
       <div className="border-t border-zinc-200 pt-4 space-y-2 font-mono">
         <div className="flex items-center justify-between text-xs">
           <span className="text-zinc-950 font-bold uppercase tracking-wider text-[11px]">
-            RECENT ACTIVITY
+            RECENT ACTIVITY LOG
           </span>
-          <button className="text-zinc-600 hover:text-zinc-950 font-bold flex items-center gap-0.5 text-[11px] cursor-pointer">
-            <span>VIEW ALL</span>
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          </button>
+          <span className="text-zinc-500 font-normal text-[11px]">REAL-TIME</span>
         </div>
 
         <div className="space-y-1.5 text-[11px]">

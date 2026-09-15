@@ -1,4 +1,4 @@
-export type RiskLevel = 'LOW RISK' | 'MEDIUM RISK' | 'HIGH RISK';
+export type RiskLevel = 'LOW RISK' | 'MEDIUM RISK' | 'HIGH RISK' | 'NO_AUDIO' | 'ACCUMULATING BUFFER';
 export type VerdictStatus = 'REAL' | 'SYNTHETIC' | 'ANALYZING' | 'NO_AUDIO';
 
 export interface SecurityCheckItem {
@@ -18,7 +18,7 @@ export interface LatencyMetric {
 
 export interface PipelineSpec {
   wsConnection: 'CONNECTED' | 'DISCONNECTED' | 'CONNECTING';
-  streamingStatus: 'IDLE' | 'LIVE_STREAMING' | 'ANALYZING';
+  streamingStatus: 'IDLE' | 'LIVE_STREAMING' | 'ANALYZING' | 'TEST_SIGNAL';
   audioEngine: string;
   audioFormat: string;
   sampleRate: number;
@@ -38,7 +38,7 @@ export interface AASISTModelSpec {
   architecture: string;
   requiredInputSamples: number;
   inputDurationSec: number;
-  engineStatus: 'ACTIVE_INFERENCE' | 'NO_AUDIO' | 'WARNING' | 'RECOMPUTING';
+  engineStatus: string;
   modelPrediction: string;
   inferenceLatencyMs: number;
   spoofProb: number;
@@ -56,7 +56,7 @@ export interface ActivityItem {
   id: string;
   time: string;
   event: string;
-  status: 'success' | 'warning' | 'error';
+  status: 'success' | 'warning' | 'error' | 'info';
   hash?: string;
 }
 
