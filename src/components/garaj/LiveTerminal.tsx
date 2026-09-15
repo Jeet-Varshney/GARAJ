@@ -9,6 +9,7 @@ interface TerminalProps {
   delayBetweenCommands?: number;
   logs: TerminalLogEntry[];
   isMonitoring: boolean;
+  isAttackSimulated?: boolean;
 }
 
 export const LiveTerminal: React.FC<TerminalProps> = ({
@@ -16,6 +17,7 @@ export const LiveTerminal: React.FC<TerminalProps> = ({
   delayBetweenCommands = 800,
   logs,
   isMonitoring,
+  isAttackSimulated = false,
 }) => {
   const [currentCmdIndex, setCurrentCmdIndex] = useState<number>(0);
   const [displayedText, setDisplayedText] = useState<string>('');
@@ -192,12 +194,24 @@ export const LiveTerminal: React.FC<TerminalProps> = ({
           <div ref={terminalEndRef} />
         </div>
 
-        <div className="px-4 py-2.5 bg-zinc-100 border-t border-zinc-200 flex items-center justify-between text-[10px] sm:text-[11px] text-zinc-600 font-mono gap-2">
+        <div className={`px-4 py-2.5 border-t flex items-center justify-between text-[10px] sm:text-[11px] font-mono gap-2 transition-colors ${
+          isAttackSimulated
+            ? 'bg-red-100 border-red-300 text-red-900'
+            : 'bg-zinc-100 border-zinc-200 text-zinc-600'
+        }`}>
           <div className="flex items-center gap-2 truncate">
-            <span className="w-2 h-2 rounded-full bg-zinc-950 animate-pulse shrink-0" />
-            <span className="font-bold text-zinc-950 truncate">STATUS: {isMonitoring ? 'STREAM_ACTIVE' : 'PAUSED'}</span>
+            <span className={`w-2 h-2 rounded-full animate-pulse shrink-0 ${
+              isAttackSimulated ? 'bg-red-600' : 'bg-zinc-950'
+            }`} />
+            <span className={`font-extrabold truncate ${
+              isAttackSimulated ? 'text-red-700' : 'text-zinc-950'
+            }`}>
+              STATUS: {isAttackSimulated ? 'CRITICAL_SPOOF_ATTACK_DETECTED' : isMonitoring ? 'STREAM_ACTIVE' : 'PAUSED'}
+            </span>
           </div>
-          <span className="font-bold text-zinc-950 shrink-0">PROCESS ID: 82940</span>
+          <span className={`font-bold shrink-0 ${
+            isAttackSimulated ? 'text-red-700' : 'text-zinc-950'
+          }`}>PROCESS ID: 82940</span>
         </div>
       </div>
     </section>

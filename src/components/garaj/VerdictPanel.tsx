@@ -48,7 +48,22 @@ export const VerdictPanel: React.FC<VerdictPanelProps> = ({
   const strokeDashoffset = circumference - (score / 100) * circumference;
 
   return (
-    <div className="bg-white rounded-2xl p-6 border border-zinc-200 shadow-sm flex flex-col justify-between space-y-6">
+    <div className={`rounded-2xl p-6 border shadow-sm flex flex-col justify-between space-y-6 transition-all ${
+      isSynthetic
+        ? 'bg-red-50/30 border-red-400 shadow-red-100/80 ring-1 ring-red-400/50'
+        : 'bg-white border-zinc-200'
+    }`}>
+      {/* Critical Alert Banner when Fake / Spoof Voice Detected */}
+      {isSynthetic && (
+        <div className="bg-red-600 text-white font-mono text-[11px] font-extrabold py-2 px-3.5 rounded-xl flex items-center justify-between shadow-sm animate-pulse">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-white shrink-0" />
+            <span>FAKE VOICE / SPOOF DETECTED</span>
+          </div>
+          <span className="bg-red-700 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider">CRITICAL ALERT</span>
+        </div>
+      )}
+
       {/* Header Label */}
       <div className="flex items-center justify-between border-b border-zinc-200 pb-4 font-mono">
         <div className="flex items-center gap-2.5">

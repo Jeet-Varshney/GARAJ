@@ -58,6 +58,7 @@ export const GarajDashboardPage: React.FC = () => {
         onViewModeChange={setViewMode}
         isMonitoring={isMonitoring}
         chunkCount={chunkTelemetry.totalChunks}
+        isAttackSimulated={isAttackSimulated}
       />
 
       {/* Main Container */}
@@ -98,10 +99,15 @@ export const GarajDashboardPage: React.FC = () => {
                 chunkFlash={chunkFlash}
                 latencies={latencies}
                 modelSpec={modelSpec}
+                isAttackSimulated={isAttackSimulated}
               />
 
               {showTerminal && (
-                <LiveTerminal logs={logs} isMonitoring={isMonitoring} />
+                <LiveTerminal
+                  logs={logs}
+                  isMonitoring={isMonitoring}
+                  isAttackSimulated={isAttackSimulated}
+                />
               )}
             </div>
           </div>
@@ -257,6 +263,7 @@ export const GarajDashboardPage: React.FC = () => {
                       chunkFlash={chunkFlash}
                       latencies={latencies}
                       modelSpec={modelSpec}
+                      isAttackSimulated={isAttackSimulated}
                     />
                   </div>
 
@@ -287,7 +294,11 @@ export const GarajDashboardPage: React.FC = () => {
 
                   {/* Inner Phone Screen Content */}
                   <div className="p-3.5 sm:p-4 bg-[#FAFAFA] max-h-[640px] overflow-y-auto space-y-4 w-full max-w-full overflow-x-hidden">
-                    <LiveTerminal logs={logs} isMonitoring={isMonitoring} />
+                    <LiveTerminal
+                      logs={logs}
+                      isMonitoring={isMonitoring}
+                      isAttackSimulated={isAttackSimulated}
+                    />
                   </div>
 
                   {/* Phone Bottom Home Bar */}
