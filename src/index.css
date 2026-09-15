@@ -1,0 +1,126 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  color-scheme: light;
+  background-color: #FAFAFA;
+  color: #09090B;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: #FAFAFA !important;
+  color: #09090B !important;
+  min-height: 100vh;
+  height: auto !important;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+  scroll-behavior: smooth;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  background-color: #FAFAFA;
+}
+
+/* Monospace Utility */
+.font-mono {
+  font-family: 'JetBrains Mono', Monaco, monospace !important;
+}
+
+/* Clean Floating Dock Glass */
+.mono-floating-dock {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid #E4E4E7;
+  box-shadow: 0 12px 32px -4px rgba(9, 9, 11, 0.08);
+  color: #09090B;
+}
+
+/* Crisp Dot Background Pattern */
+.mono-dot-grid {
+  background-image: radial-gradient(#E4E4E7 1.2px, transparent 1.2px);
+  background-size: 24px 24px;
+}
+
+/* Animated Black Hover Button (Adapted from user's custom CSS) */
+.animated-mono-btn {
+  --color: #09090B;
+  font-family: 'JetBrains Mono', Monaco, monospace;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.45rem 1.15rem;
+  overflow: hidden;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  z-index: 1;
+  color: var(--color);
+  border: 1.5px solid var(--color);
+  border-radius: 9999px;
+  position: relative;
+  transition: color 0.3s ease;
+}
+
+.animated-mono-btn::before {
+  position: absolute;
+  content: "";
+  background: var(--color);
+  width: 500px;
+  height: 500px;
+  z-index: -1;
+  border-radius: 50%;
+  top: 100%;
+  left: 100%;
+  transition: 0.35s ease all;
+}
+
+.animated-mono-btn:hover {
+  color: #FFFFFF !important;
+}
+
+.animated-mono-btn:hover::before {
+  top: -150px;
+  left: -100px;
+}
+
+.animated-mono-btn-active {
+  background: #09090B !important;
+  color: #FFFFFF !important;
+  border-color: #09090B !important;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FAFAFA;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #E4E4E7;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #A1A1AA;
+}
