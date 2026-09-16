@@ -36,6 +36,7 @@ export function useGarajSecurity() {
   const {
     isStreaming,
     isSimulated,
+    audioSourceType,
     clientAudioStats,
     startStreaming,
     startSimulatedStreaming,
@@ -124,18 +125,69 @@ export function useGarajSecurity() {
     };
   }, [isStreaming, analyserNode, clientAudioStats]);
 
-  // Detection values extracted from real backend telemetry
+  // TASK 5: Log WebSocket message telemetry verification fields
+  useEffect(() => {
+    if (!latestTelemetry) return;
+    const det = latestTelemetry.detection || {};
+    const metrics = det.audio_metrics || {};
+    console.log(
+      '[WS DETECT VERIFY]\n' +
+      `status: ${det.status ?? 'N/A'}\n` +
+      `predicted_class: ${det.predicted_class ?? 'N/A'}\n` +
+      `RMS: ${metrics.rms ?? 'N/A'}\n` +
+      `peak: ${metrics.peak_amplitude ?? 'N/A'}\n` +
+      `risk_score: ${det.risk_score ?? 'N/A'}\n` +
+      `real_probability: ${det.real_probability ?? 'N/A'}\n` +
+      `synthetic_probability: ${det.synthetic_probability ?? 'N/A'}\n` +
+      `timestamp: ${det.timestamp ?? 'N/A'}`
+    );
+  }, [latestTelemetry]);
+
+  // TASK 8: Implement strict 4-level State Hierarchy:
+  // 1. DISCONNECTED -> Backend Disconnected
+  // 2. CONNECTED + NO_AUDIO (mic off OR status=="NO_AUDIO" OR predicted_class=="NO_AUDIO") -> NO_AUDIO
+  // 3. CONNECTED + AUDIO BUT MODEL NOT READY (status=="ANALYZING") -> Waiting for detection
+  // 4. CONNECTED + VALID MODEL RESULT (status=="MODEL_READY" & real_probability != null) -> Show actual REAL/SYNTHETIC result
   const detection = latestTelemetry?.detection || {};
-  const predictedClass = detection.predicted_class || (isStreaming ? 'ANALYZING' : 'NO_AUDIO');
-  const realProb = detection.real_probability !== undefined && detection.real_probability !== null ? detection.real_probability : null;
-  const synthProb = detection.synthetic_probability !== undefined && detection.synthetic_probability !== null ? detection.synthetic_probability : null;
+  const isWsConnected = connectionStatus === 'CONNECTED';
+  const detStatus = detection.status || 'NO_AUDIO';
+  const detClass = detection.predicted_class || 'NO_AUDIO';
+  const hasValidProb = detection.real_probability !== undefined && detection.real_probability !== null;
 
-  const isSynthetic = predictedClass === 'SYNTHETIC';
-  const isReal = predictedClass === 'REAL';
+  let stateMode: 'DISCONNECTED' | 'NO_AUDIO' | 'ANALYZING' | 'MODEL_READY' = 'DISCONNECTED';
+  let verdict: VerdictStatus | string = 'Backend Disconnected';
+  let riskLevel: RiskLevel | string = 'NO_AUDIO';
+  let realProb: number | null = null;
+  let synthProb: number | null = null;
+  let riskScore: number | null = null;
+  let authenticityScore: number | null = null;
 
-  const authenticityScore = realProb !== null ? Math.round(realProb * 100) : 0;
-  const verdict: VerdictStatus = predictedClass as VerdictStatus;
-  const riskLevel: RiskLevel = isSynthetic ? 'HIGH RISK' : isReal ? 'LOW RISK' : 'NO_AUDIO';
+  if (!isWsConnected) {
+    stateMode = 'DISCONNECTED';
+    verdict = 'Backend Disconnected';
+    riskLevel = 'NO_AUDIO';
+  } else if (!isStreaming || detStatus === 'NO_AUDIO' || detClass === 'NO_AUDIO') {
+    stateMode = 'NO_AUDIO';
+    verdict = 'NO_AUDIO';
+    riskLevel = 'NO_AUDIO';
+  } else if (detStatus === 'ANALYZING' || detClass === 'ANALYZING' || !hasValidProb) {
+    stateMode = 'ANALYZING';
+    verdict = 'Waiting for detection';
+    riskLevel = 'ACCUMULATING BUFFER';
+  } else {
+    stateMode = 'MODEL_READY';
+    verdict = detClass as VerdictStatus;
+    realProb = detection.real_probability;
+    synthProb = detection.synthetic_probability;
+    riskScore = detection.risk_score !== undefined && detection.risk_score !== null
+      ? detection.risk_score
+      : (synthProb !== null ? Math.round(synthProb * 10000) / 100 : null);
+    authenticityScore = realProb !== null ? Math.round(realProb * 100) : null;
+    riskLevel = verdict === 'SYNTHETIC' ? 'HIGH RISK' : 'LOW RISK';
+  }
+
+  const isSynthetic = stateMode === 'MODEL_READY' && verdict === 'SYNTHETIC';
+  const isReal = stateMode === 'MODEL_READY' && verdict === 'REAL';
 
   const audioMetrics = detection.audio_metrics || {};
   const consecutiveDiff = detection.consecutive_diff || null;
@@ -161,7 +213,9 @@ export function useGarajSecurity() {
       label: 'W2V2-AASIST Neural Model Pass',
       status: isReal ? 'Normal' : isSynthetic ? 'Failed' : 'Normal',
       description: 'XLS-R 300M + Graph Attention spectro-temporal evaluation',
-      value: realProb !== null ? `Real: ${(realProb * 100).toFixed(1)}% | Spoof: ${(synthProb! * 100).toFixed(1)}%` : 'Unavailable',
+      value: realProb !== null && synthProb !== null
+        ? `Real: ${(realProb * 100).toFixed(1)}% | Spoof: ${(synthProb * 100).toFixed(1)}%`
+        : !isWsConnected ? 'Backend Disconnected' : 'Waiting for 64,600 samples...',
     },
   ];
 
@@ -169,7 +223,9 @@ export function useGarajSecurity() {
   const pipelineSpec: PipelineSpec = {
     wsConnection: connectionStatus === 'CONNECTED' ? 'CONNECTED' : connectionStatus === 'CONNECTING' ? 'CONNECTING' : 'DISCONNECTED',
     streamingStatus: isStreaming ? (isSimulated ? 'TEST_SIGNAL' : 'LIVE_STREAMING') : 'IDLE',
-    audioEngine: isSimulated ? 'Simulation' : 'AudioWorklet',
+    audioEngine: isSimulated
+      ? 'Simulation'
+      : (audioSourceType === 'caller_audio' ? 'Caller/System Capture (AudioWorklet)' : 'Local Mic (AudioWorklet)'),
     audioFormat: '16 kHz Mono PCM_S16LE',
     sampleRate: 16000,
     channels: 1,
@@ -186,19 +242,19 @@ export function useGarajSecurity() {
   };
 
   // Latency metrics
-  const computeLatency = detection.compute_latency_ms !== undefined ? detection.compute_latency_ms : 0;
+  const computeLatency = detection.compute_latency_ms !== undefined && detection.compute_latency_ms !== null ? detection.compute_latency_ms : 0;
   const latencies: LatencyMetric[] = [
-    { name: 'Backend Compute', valueMs: computeLatency, color: '#10B981', percentage: 25 },
-    { name: 'Round Trip (RTT)', valueMs: roundTripLatency, color: '#09090B', percentage: 75 },
+    { name: 'Backend Compute', valueMs: computeLatency, color: '#10B981', percentage: computeLatency > 0 ? 25 : 0 },
+    { name: 'Round Trip (RTT)', valueMs: roundTripLatency, color: '#09090B', percentage: roundTripLatency > 0 ? 75 : 0 },
   ];
 
   // Model specification diagnostics
   const modelSpec: AASISTModelSpec = {
     architecture: detection.model || 'W2V2-AASIST (XLS-R 300M + AASIST Graph Attention)',
-    requiredInputSamples: 64600,
+    requiredInputSamples: detection.required_samples || 64600,
     inputDurationSec: 4.04,
-    engineStatus: detection.status || (isStreaming ? 'ACTIVE_INFERENCE' : 'NO_AUDIO'),
-    modelPrediction: predictedClass,
+    engineStatus: detection.status || (isWsConnected ? (isStreaming ? 'ANALYZING' : 'IDLE') : 'DISCONNECTED'),
+    modelPrediction: verdict,
     inferenceLatencyMs: computeLatency,
     spoofProb: synthProb !== null ? synthProb : 0,
     realProb: realProb !== null ? realProb : 0,
@@ -219,7 +275,7 @@ export function useGarajSecurity() {
     let actStatus: 'success' | 'error' | 'info' = 'info';
 
     if (detClass === 'SYNTHETIC') {
-      eventMsg = `ALERT: Synthetic voice detected in chunk #${seqId}`;
+      eventMsg = `ALERT: Spoof voice detected in chunk #${seqId}`;
       actStatus = 'error';
     } else if (detClass === 'REAL') {
       eventMsg = `Real voice verified in chunk #${seqId} (${(realProb! * 100).toFixed(1)}%)`;
@@ -259,6 +315,9 @@ export function useGarajSecurity() {
     showTerminal,
     setShowTerminal,
     authenticityScore,
+    riskScore,
+    realProb,
+    synthProb,
     verdict,
     riskLevel,
     checks,

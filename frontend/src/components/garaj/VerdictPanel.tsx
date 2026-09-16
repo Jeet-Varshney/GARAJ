@@ -10,6 +10,7 @@ import {
   Pause,
   Zap,
   Activity,
+  Radio,
 } from 'lucide-react';
 import type {
   VerdictStatus,
@@ -19,9 +20,9 @@ import type {
 } from '../../types/garaj';
 
 interface VerdictPanelProps {
-  score: number;
-  verdict: VerdictStatus;
-  riskLevel: RiskLevel;
+  score: number | null;
+  verdict: VerdictStatus | string;
+  riskLevel: RiskLevel | string;
   checks: SecurityCheckItem[];
   recentActivities: ActivityItem[];
   isMonitoring: boolean;
@@ -42,9 +43,14 @@ export const VerdictPanel: React.FC<VerdictPanelProps> = ({
   onToggleAttack,
 }) => {
   const isSynthetic = verdict === 'SYNTHETIC';
+  const isDisconnected = verdict === 'Backend Disconnected';
+  const isNoAudio = verdict === 'NO_AUDIO';
+  const isWaiting = verdict === 'Waiting for detection' || verdict === 'Waiting for detection...';
+  const hasScore = score !== null && score !== undefined && !isDisconnected && !isNoAudio && !isWaiting;
+
   const radius = 76;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (score / 100) * circumference;
+  const strokeDashoffset = hasScore ? circumference - ((score || 0) / 100) * circumference : circumference;
 
   return (
     <div className={`rounded-2xl p-6 border shadow-sm flex flex-col justify-between space-y-6 transition-all ${
@@ -52,12 +58,12 @@ export const VerdictPanel: React.FC<VerdictPanelProps> = ({
         ? 'bg-red-50/30 border-red-400 shadow-red-100/80 ring-1 ring-red-400/50'
         : 'bg-white border-zinc-200'
     }`}>
-      {/* Critical Alert Banner when Synthetic / Spoof Voice Detected */}
+      {/* Critical Alert Banner when Non-Real / Spoof Voice Detected */}
       {isSynthetic && (
         <div className="bg-red-600 text-white font-mono text-[11px] font-extrabold py-2 px-3.5 rounded-xl flex items-center justify-between shadow-sm animate-pulse">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-white shrink-0" />
-            <span>SYNTHETIC / SPOOF VOICE DETECTED</span>
+            <span>UNAUTHENTIC / SPOOF VOICE DETECTED</span>
           </div>
           <span className="bg-red-700 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider">CRITICAL ALERT</span>
         </div>
@@ -99,11 +105,11 @@ export const VerdictPanel: React.FC<VerdictPanelProps> = ({
               cx="100"
               cy="100"
               r={radius}
-              stroke={isSynthetic ? '#EF4444' : '#09090B'}
+              stroke={isSynthetic ? '#EF4444' : isDisconnected || isNoAudio ? '#D4D4D8' : isWaiting ? '#F59E0B' : '#09090B'}
               strokeWidth="12"
               strokeDasharray={circumference}
               initial={{ strokeDashoffset: circumference }}
-              animate={{ strokeDashoffset: score > 0 ? strokeDashoffset : circumference }}
+              animate={{ strokeDashoffset }}
               transition={{ duration: 0.8, ease: 'easeOut' }}
               strokeLinecap="round"
               fill="transparent"
@@ -111,21 +117,25 @@ export const VerdictPanel: React.FC<VerdictPanelProps> = ({
           </svg>
 
           {/* Center Text inside Circle */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
             <motion.span
-              key={score}
+              key={isDisconnected ? 'off' : isNoAudio ? 'noaudio' : isWaiting ? 'wait' : score}
               initial={{ scale: 0.85, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className={`text-4xl font-extrabold tracking-tight font-sans ${
-                isSynthetic ? 'text-red-600' : 'text-zinc-950'
+              className={`text-3xl sm:text-4xl font-extrabold tracking-tight font-sans ${
+                isSynthetic ? 'text-red-600' : isDisconnected || isNoAudio ? 'text-zinc-400' : 'text-zinc-950'
               }`}
             >
-              {score}%
+              {hasScore ? `${score}%` : '--'}
             </motion.span>
             <span
-              className={`text-xs font-mono font-bold uppercase tracking-widest mt-1 px-3.5 py-0.5 rounded-full border ${
+              className={`text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider mt-1 px-3 py-0.5 rounded-full border text-center truncate max-w-full ${
                 isSynthetic
                   ? 'text-red-600 bg-red-50 border-red-200'
+                  : isDisconnected || isNoAudio
+                  ? 'text-zinc-600 bg-zinc-100 border-zinc-200'
+                  : isWaiting
+                  ? 'text-amber-800 bg-amber-50 border-amber-200'
                   : 'text-zinc-950 bg-zinc-100 border-zinc-300'
               }`}
             >
@@ -145,11 +155,19 @@ export const VerdictPanel: React.FC<VerdictPanelProps> = ({
             className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold font-mono tracking-wide border ${
               riskLevel === 'HIGH RISK'
                 ? 'bg-red-50 text-red-600 border-red-200'
+                : isDisconnected || isNoAudio
+                ? 'bg-zinc-100 text-zinc-600 border-zinc-200'
+                : isWaiting
+                ? 'bg-amber-50 text-amber-800 border-amber-200'
                 : 'bg-zinc-100 text-zinc-950 border-zinc-300'
             }`}
           >
             {riskLevel === 'HIGH RISK' ? (
               <ShieldAlert className="w-4 h-4 text-red-600" />
+            ) : isDisconnected || isNoAudio ? (
+              <Radio className="w-4 h-4 text-zinc-400" />
+            ) : isWaiting ? (
+              <Activity className="w-4 h-4 text-amber-600 animate-pulse" />
             ) : (
               <ShieldCheck className="w-4 h-4 text-zinc-950" />
             )}

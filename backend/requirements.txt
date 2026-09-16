@@ -1,12 +1,21 @@
-fastapi>=0.100.0
-uvicorn[standard]>=0.22.0
-websockets>=11.0
-numpy>=1.24.0
-psutil>=5.9.0
-pydantic>=2.0
-torch>=2.0.0
-torchaudio>=2.0.0
-transformers>=4.30.0
-soundfile>=0.12.0
-librosa>=0.10.0
-scipy>=1.10.0
+# Production runtime dependencies for GARAJ FastAPI backend
+
+# Web & ASGI Server
+fastapi==0.135.3
+uvicorn[standard]==0.38.0
+websockets==16.0
+pydantic==2.13.4
+
+# Core ML & Model Inference (W2V2-AASIST)
+torch==2.14.0
+torchaudio==2.11.0
+transformers==5.17.0
+
+# Signal Processing & Feature Extraction
+numpy==2.3.5
+scipy==1.16.3
+soundfile==0.14.0
+librosa==1.0.0
+
+# System Telemetry & Monitoring
+psutil==7.1.0

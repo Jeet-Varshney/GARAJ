@@ -39,7 +39,9 @@ export function useWebSocket(url = getDefaultWsUrl()) {
 
       ws.onmessage = (event) => {
         try {
+          console.log('[WS RAW MESSAGE]', event.data);
           const data = JSON.parse(event.data);
+          console.log('[WS PARSED]', data);
           
           if (data.timestamps && data.timestamps.client_ts_ms) {
             const clientSendTs = data.timestamps.client_ts_ms;

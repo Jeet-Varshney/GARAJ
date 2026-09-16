@@ -312,6 +312,11 @@ class ModelDetectionEngine(BaseDetectionEngine):
             with self._lock:
                 self._is_inferring = False
 
-    def reset_session(self, session_id: str) -> None:
-        """Reset session state if required."""
-        pass
+    def reset_session(self, session_id: str = "") -> None:
+        """Reset session state when connection resets or stops."""
+        with self._lock:
+            self._last_result = None
+            self._is_inferring = False
+            self._prev_window = None
+            self._prev_window_hash = None
+            self._prev_rms = None

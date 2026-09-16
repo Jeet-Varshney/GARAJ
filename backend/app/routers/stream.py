@@ -98,6 +98,11 @@ async def websocket_audio_endpoint(websocket: WebSocket):
     """
     await websocket.accept()
 
+    # Reset detection engine session cache for fresh connection
+    reset_fn = getattr(active_engine, "reset_session", None)
+    if callable(reset_fn):
+        reset_fn()
+
     audio_buffer = RollingAudioBuffer(sample_rate=16000, window_duration_sec=4.1)
     tracker = StreamSessionTracker(sample_rate=16000)
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useGarajSecurity } from '../hooks/useGarajSecurity';
 import { Header } from '../components/garaj/Header';
 import { VerdictPanel } from '../components/garaj/VerdictPanel';
@@ -37,6 +37,16 @@ export const GarajDashboardPage: React.FC = () => {
 
   // View Mode: 'desktop-3col' (Default Full Screen) | 'mobile-frame' (4 Mobile Phone Slides Parallel)
   const [viewMode, setViewMode] = useState<LayoutViewMode>('desktop-3col');
+
+  // TASK 8: Prevent automatic scroll on page load/refresh
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if ('scrollRestoration' in window.history) {
+        window.history.scrollRestoration = 'manual';
+      }
+      window.scrollTo(0, 0);
+    }
+  }, []);
 
   // Refs for smooth scrolling to specific mobile frame when tabs are clicked
   const frame1Ref = useRef<HTMLDivElement | null>(null);

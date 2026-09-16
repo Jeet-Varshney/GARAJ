@@ -1,40 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 
-/**
- * Resamples Float32 audio array to 16kHz Signed 16-bit PCM ArrayBuffer.
- */
-function convertFloat32ToInt16PCM(float32Array, inputSampleRate = 44100, targetSampleRate = 16000) {
-  if (Math.abs(inputSampleRate - targetSampleRate) < 1) {
-    const int16 = new Int16Array(float32Array.length);
-    for (let i = 0; i < float32Array.length; i++) {
-      const s = Math.max(-1.0, Math.min(1.0, float32Array[i]));
-      int16[i] = s < 0 ? s * 32768 : s * 32767;
-    }
-    return int16.buffer;
-  }
-
-  const ratio = inputSampleRate / targetSampleRate;
-  const newLength = Math.floor(float32Array.length / ratio);
-  const int16 = new Int16Array(newLength);
-
-  let offset = 0;
-  for (let i = 0; i < newLength; i++) {
-    const nextOffset = Math.floor((i + 1) * ratio);
-    let sum = 0;
-    let count = 0;
-    for (let j = offset; j < nextOffset && j < float32Array.length; j++) {
-      sum += float32Array[j];
-      count++;
-    }
-    const sample = count > 0 ? sum / count : float32Array[Math.floor(offset)] || 0;
-    const s = Math.max(-1.0, Math.min(1.0, sample));
-    int16[i] = s < 0 ? s * 32768 : s * 32767;
-    offset = nextOffset;
-  }
-  return int16.buffer;
-}
-
-export function useAudioStreamer({ onAudioChunkReceived }) {
+export function useAudioStreamer({ onAudioChunkReceived, callerStream: initialCallerStream } = {}) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isSimulated, setIsSimulated] = useState(false);
   const [hasMicPermission, setHasMicPermission] = useState(false);
@@ -49,15 +15,24 @@ export function useAudioStreamer({ onAudioChunkReceived }) {
     sampleRate: 0,
   });
 
+  const [audioSourceType, setAudioSourceType] = useState('remote_caller_silence');
+
   const audioContextRef = useRef(null);
   const mediaStreamRef = useRef(null);
+  const callerStreamRef = useRef(initialCallerStream || null);
   const workletNodeRef = useRef(null);
-  const scriptProcessorRef = useRef(null);
+  const silenceSourceRef = useRef(null);
   const analyserNodeRef = useRef(null);
   const animFrameIdRef = useRef(null);
   const simulationIntervalRef = useRef(null);
   const simPhaseRef = useRef(0);
   const totalCapturedSamplesRef = useRef(0);
+
+  useEffect(() => {
+    if (initialCallerStream) {
+      callerStreamRef.current = initialCallerStream;
+    }
+  }, [initialCallerStream]);
 
   const processChunkTelemetry = (arrayBuffer) => {
     if (!arrayBuffer) return;
@@ -111,20 +86,20 @@ export function useAudioStreamer({ onAudioChunkReceived }) {
       simulationIntervalRef.current = null;
     }
 
+    if (silenceSourceRef.current) {
+      try {
+        silenceSourceRef.current.stop();
+        silenceSourceRef.current.disconnect();
+      } catch (e) { /* ignore */ }
+      silenceSourceRef.current = null;
+    }
+
     if (workletNodeRef.current) {
       try {
         workletNodeRef.current.port.onmessage = null;
         workletNodeRef.current.disconnect();
       } catch (e) { /* ignore */ }
       workletNodeRef.current = null;
-    }
-
-    if (scriptProcessorRef.current) {
-      try {
-        scriptProcessorRef.current.onaudioprocess = null;
-        scriptProcessorRef.current.disconnect();
-      } catch (e) { /* ignore */ }
-      scriptProcessorRef.current = null;
     }
 
     if (mediaStreamRef.current) {
@@ -146,38 +121,48 @@ export function useAudioStreamer({ onAudioChunkReceived }) {
     setVolumeLevel(0);
   }, []);
 
-  const getMicrophoneStream = async () => {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      throw new Error('Microphone API is not available (browser non-secure context or unsupported).');
+  const getSystemDisplayStream = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+      throw new Error('System / Tab audio capture API (getDisplayMedia) is not supported in this browser.');
     }
 
     try {
-      return await navigator.mediaDevices.getUserMedia({
+      const displayStream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
         audio: {
-          channelCount: { ideal: 1 },
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
         },
       });
-    } catch (err1) {
-      console.warn('Strict mic constraints failed, attempting basic audio constraints:', err1);
-      if (err1.name === 'AbortError') {
-        await new Promise((r) => setTimeout(r, 250));
+
+      const audioTracks = displayStream.getAudioTracks();
+      if (!audioTracks || audioTracks.length === 0) {
+        displayStream.getTracks().forEach((track) => track.stop());
+        throw new Error('No audio track selected in screen capture prompt.');
       }
-      return await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      const callerAudioStream = new MediaStream([audioTracks[0]]);
+      displayStream.getVideoTracks().forEach((track) => track.stop());
+
+      audioTracks[0].onended = () => {
+        stopStreaming();
+      };
+
+      return callerAudioStream;
+    } catch (err) {
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        throw new Error('Caller audio capture prompt was cancelled or denied by user.');
+      }
+      throw err;
     }
   };
 
-  const startStreaming = useCallback(async () => {
+  const startStreaming = useCallback(async (inputOption = 'caller_audio') => {
     stopStreaming();
     setPermissionError(null);
 
     try {
-      const stream = await getMicrophoneStream();
-      mediaStreamRef.current = stream;
-      setHasMicPermission(true);
-
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtx) {
         throw new Error('Web Audio API is not supported in this browser.');
@@ -189,56 +174,58 @@ export function useAudioStreamer({ onAudioChunkReceived }) {
         await audioCtx.resume();
       }
 
-      const sourceNode = audioCtx.createMediaStreamSource(stream);
+      // Initialize AudioWorklet
+      await audioCtx.audioWorklet.addModule('/audio-processor.js');
+      const workletNode = new AudioWorkletNode(audioCtx, 'pcm-stream-processor');
+      workletNodeRef.current = workletNode;
+
+      workletNode.port.onmessage = (event) => {
+        const int16ArrayBuffer = event.data;
+        processChunkTelemetry(int16ArrayBuffer);
+        if (onAudioChunkReceived && int16ArrayBuffer) {
+          onAudioChunkReceived(int16ArrayBuffer);
+        }
+      };
+
+      // Lifecycle Fix: Keep AudioWorkletNode connected to silent GainNode -> destination
+      const workletGain = audioCtx.createGain();
+      workletGain.gain.value = 0;
+      workletNode.connect(workletGain);
+      workletGain.connect(audioCtx.destination);
+
       const analyserNode = audioCtx.createAnalyser();
       analyserNode.fftSize = 256;
       analyserNodeRef.current = analyserNode;
-      sourceNode.connect(analyserNode);
 
-      let workletLoaded = false;
-      try {
-        await audioCtx.audioWorklet.addModule('/audio-processor.js');
-        const workletNode = new AudioWorkletNode(audioCtx, 'pcm-stream-processor');
-        workletNodeRef.current = workletNode;
-
-        workletNode.port.onmessage = (event) => {
-          const int16ArrayBuffer = event.data;
-          processChunkTelemetry(int16ArrayBuffer);
-          if (onAudioChunkReceived && int16ArrayBuffer) {
-            onAudioChunkReceived(int16ArrayBuffer);
-          }
-        };
-
-        sourceNode.connect(workletNode);
-        const workletGain = audioCtx.createGain();
-        workletGain.gain.value = 0;
-        workletNode.connect(workletGain);
-        workletGain.connect(audioCtx.destination);
-
-        workletLoaded = true;
-      } catch (workletErr) {
-        console.warn('AudioWorklet initialization failed, switching to ScriptProcessorNode fallback:', workletErr);
+      let sourceStream = null;
+      if (typeof inputOption === 'object' && inputOption !== null && inputOption instanceof MediaStream) {
+        sourceStream = inputOption;
+        setAudioSourceType('remote_caller_mediastream');
+      } else if (callerStreamRef.current instanceof MediaStream) {
+        sourceStream = callerStreamRef.current;
+        setAudioSourceType('remote_caller_mediastream');
+      } else if (inputOption === 'system_display') {
+        sourceStream = await getSystemDisplayStream();
+        setAudioSourceType('system_display_capture');
       }
 
-      if (!workletLoaded) {
-        const bufferSize = 4096;
-        const scriptProcessor = audioCtx.createScriptProcessor(bufferSize, 1, 1);
-        scriptProcessorRef.current = scriptProcessor;
-
-        scriptProcessor.onaudioprocess = (audioProcessingEvent) => {
-          const inputBuffer = audioProcessingEvent.inputBuffer;
-          const inputData = inputBuffer.getChannelData(0);
-          const pcmBuffer = convertFloat32ToInt16PCM(inputData, inputBuffer.sampleRate, 16000);
-          if (onAudioChunkReceived && pcmBuffer) {
-            onAudioChunkReceived(pcmBuffer);
-          }
-        };
-
-        sourceNode.connect(scriptProcessor);
-        const gainNode = audioCtx.createGain();
-        gainNode.gain.value = 0;
-        scriptProcessor.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
+      if (sourceStream) {
+        mediaStreamRef.current = sourceStream;
+        const sourceNode = audioCtx.createMediaStreamSource(sourceStream);
+        sourceNode.connect(analyserNode);
+        sourceNode.connect(workletNode);
+        setHasMicPermission(true);
+      } else {
+        // Silent AudioSource into AudioWorklet when no active caller MediaStream exists
+        // Generates 16kHz PCM zero chunks -> backend energy gate detects NO_AUDIO safely
+        const silenceSource = audioCtx.createConstantSource();
+        silenceSource.offset.value = 0;
+        silenceSource.start();
+        silenceSourceRef.current = silenceSource;
+        silenceSource.connect(analyserNode);
+        silenceSource.connect(workletNode);
+        setAudioSourceType('remote_caller_silence');
+        setHasMicPermission(true);
       }
 
       setIsStreaming(true);
@@ -246,21 +233,19 @@ export function useAudioStreamer({ onAudioChunkReceived }) {
       animFrameIdRef.current = requestAnimationFrame(updateVolume);
 
     } catch (err) {
-      console.error('Failed to start audio streaming:', err);
-      let msg = err.message || 'Microphone access denied or unavailable.';
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        msg = 'Microphone permission denied. Please allow microphone access in browser settings.';
-      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-        msg = 'No microphone hardware found on this device.';
-      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-        msg = 'Microphone hardware is busy or being used by another application.';
-      } else if (err.name === 'AbortError') {
-        msg = 'Microphone operation was aborted by browser or OS audio subsystem (device lock). Click Start Monitoring again or use Simulated Stream.';
-      }
+      console.error('Failed to start AudioWorklet audio streaming:', err);
+      let msg = err.message || 'AudioWorklet stream setup failed.';
       setPermissionError(msg);
       setIsStreaming(false);
     }
   }, [onAudioChunkReceived, stopStreaming, updateVolume]);
+
+  const attachCallerStream = useCallback((stream) => {
+    callerStreamRef.current = stream;
+    if (isStreaming) {
+      startStreaming(stream);
+    }
+  }, [isStreaming, startStreaming]);
 
   const startSimulatedStreaming = useCallback(() => {
     stopStreaming();
@@ -304,11 +289,13 @@ export function useAudioStreamer({ onAudioChunkReceived }) {
   return {
     isStreaming,
     isSimulated,
+    audioSourceType,
     hasMicPermission,
     permissionError,
     volumeLevel,
     clientAudioStats,
     startStreaming,
+    attachCallerStream,
     startSimulatedStreaming,
     stopStreaming,
     analyserNode: analyserNodeRef.current,

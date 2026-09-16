@@ -25,7 +25,7 @@ export const LiveTerminal: React.FC<TerminalProps> = ({
   const [completedCmds, setCompletedCmds] = useState<number[]>([]);
   const [copied, setCopied] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
-  const terminalEndRef = useRef<HTMLDivElement | null>(null);
+  const terminalContainerRef = useRef<HTMLDivElement | null>(null);
 
   const demoCommands = [
     "garaj-cli init --stream-ws wss://api.garaj.sec/v1/voice-stream",
@@ -85,8 +85,8 @@ export const LiveTerminal: React.FC<TerminalProps> = ({
   }, [displayedText, isTyping, currentCmdIndex, isPaused, typingSpeed, delayBetweenCommands]);
 
   useEffect(() => {
-    if (!isPaused && terminalEndRef.current) {
-      terminalEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (!isPaused && terminalContainerRef.current) {
+      terminalContainerRef.current.scrollTop = terminalContainerRef.current.scrollHeight;
     }
   }, [displayedText, completedCmds, isPaused]);
 
@@ -149,7 +149,7 @@ export const LiveTerminal: React.FC<TerminalProps> = ({
         </div>
 
         {/* Animated Terminal Content Output */}
-        <div className="p-4 sm:p-5 max-h-72 overflow-y-auto bg-[#09090B] text-zinc-200 font-mono text-[11px] sm:text-xs leading-relaxed space-y-4 select-text">
+        <div ref={terminalContainerRef} className="p-4 sm:p-5 max-h-72 overflow-y-auto bg-[#09090B] text-zinc-200 font-mono text-[11px] sm:text-xs leading-relaxed space-y-4 select-text">
           {completedCmds.map((cmdIdx) => (
             <div key={cmdIdx} className="space-y-1.5 break-words">
               <div className="flex items-start gap-1.5 text-white flex-wrap">
@@ -190,8 +190,6 @@ export const LiveTerminal: React.FC<TerminalProps> = ({
               </div>
             ))}
           </div>
-
-          <div ref={terminalEndRef} />
         </div>
 
         <div className={`px-4 py-2.5 border-t flex items-center justify-between text-[10px] sm:text-[11px] font-mono gap-2 transition-colors ${

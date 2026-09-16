@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, Radio, Monitor, Smartphone, AlertTriangle } from 'lucide-react';
+import { Zap, Radio, Monitor, Smartphone, AlertTriangle, RotateCw } from 'lucide-react';
 import type { LayoutViewMode } from '../../types/garaj';
 
 interface HeaderProps {
@@ -75,7 +75,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </div>
 
-        {/* Right Telemetry Badge */}
+        {/* Right Telemetry Badge & Refresh Action */}
         <div className="flex items-center gap-3 font-mono">
           <div className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs border font-mono transition-colors ${
             isAttackSimulated
@@ -93,6 +93,17 @@ export const Header: React.FC<HeaderProps> = ({
             <span className={isAttackSimulated ? 'text-amber-300' : 'text-zinc-300'}>|</span>
             <span className={`font-semibold ${isAttackSimulated ? 'text-amber-900' : 'text-zinc-950'}`}>{chunkCount} chunks</span>
           </div>
+
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            title="Refresh"
+            aria-label="Refresh"
+            className="animated-mono-btn shrink-0"
+          >
+            <RotateCw className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Refresh</span>
+          </button>
         </div>
       </div>
     </header>
@@ -100,3 +111,4 @@ export const Header: React.FC<HeaderProps> = ({
 };
 
 export default Header;
+
