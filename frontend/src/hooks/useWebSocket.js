@@ -6,7 +6,7 @@ const getDefaultWsUrl = () => {
     const host = window.location.hostname || 'localhost';
     return `${protocol}//${host}:8000/ws/stream`;
   }
-  return 'ws://localhost:8000/ws/stream';
+  return `${import.meta.env.VITE_API_URL.replace(/^http/, 'ws')}/ws/stream`;
 };
 
 export function useWebSocket(url = getDefaultWsUrl()) {
