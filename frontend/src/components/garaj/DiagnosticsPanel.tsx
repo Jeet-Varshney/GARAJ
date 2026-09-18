@@ -23,7 +23,7 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
   chunkFlash,
   latencies,
   modelSpec,
-  isAttackSimulated = false,
+  isAttackSimulated: _isAttackSimulated = false,
 }) => {
   const totalLatencyMs = latencies.reduce((acc, l) => acc + l.valueMs, 0);
 
@@ -173,14 +173,14 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
 
       {/* Card D: Detection Engine */}
       <div className={`rounded-2xl p-4 sm:p-6 border shadow-sm space-y-4 min-w-0 transition-all ${
-        isAttackSimulated || modelSpec.spoofProb > 0.5
+        modelSpec.modelPrediction === 'SYNTHETIC'
           ? 'bg-red-50/30 border-red-400 ring-1 ring-red-400/50'
           : 'bg-white border-zinc-200'
       }`}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-200 pb-3.5">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className={`p-2 rounded-xl shrink-0 ${
-              isAttackSimulated ? 'bg-red-600 text-white' : 'bg-zinc-100 text-zinc-950'
+              modelSpec.modelPrediction === 'SYNTHETIC' ? 'bg-red-600 text-white' : 'bg-zinc-100 text-zinc-950'
             }`}>
               <Cpu className="w-4 h-4" />
             </div>
@@ -190,12 +190,12 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
           </div>
           <span
             className={`px-3 py-1 rounded-full text-[11px] font-extrabold border shrink-0 w-fit ${
-              isAttackSimulated || modelSpec.spoofProb > 0.5
+              modelSpec.modelPrediction === 'SYNTHETIC'
                 ? 'bg-red-600 text-white border-red-700 animate-pulse'
                 : 'bg-zinc-100 text-zinc-950 border-zinc-300'
             }`}
           >
-            {isAttackSimulated ? 'SPOOF_DETECTED' : modelSpec.engineStatus}
+            {modelSpec.modelPrediction === 'SYNTHETIC' ? 'SPOOF_DETECTED' : modelSpec.engineStatus}
           </span>
         </div>
 
@@ -206,13 +206,13 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
           </div>
 
           <div className={`p-3 sm:p-3.5 rounded-xl border space-y-1 min-w-0 ${
-            isAttackSimulated || modelSpec.spoofProb > 0.5
+            modelSpec.modelPrediction === 'SYNTHETIC'
               ? 'bg-red-100/80 border-red-300'
               : 'bg-zinc-50 border-zinc-200/80'
           }`}>
             <span className="text-zinc-500 text-[10px] block uppercase font-bold">MODEL PREDICTION</span>
             <span className={`font-extrabold text-[11px] sm:text-xs block truncate ${
-              isAttackSimulated || modelSpec.spoofProb > 0.5 ? 'text-red-700' : 'text-zinc-950'
+              modelSpec.modelPrediction === 'SYNTHETIC' ? 'text-red-700' : 'text-zinc-950'
             }`}>
               {modelSpec.modelPrediction}
             </span>

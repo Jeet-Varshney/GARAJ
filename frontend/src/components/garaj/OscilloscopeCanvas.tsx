@@ -79,12 +79,9 @@ export const OscilloscopeCanvas: React.FC<OscilloscopeCanvasProps> = ({
       phase += 0.07;
 
       for (let x = 0; x < width; x++) {
-        const amp = isMonitoring ? 16 + rmsEnergy * 90 : 4;
+        const amp = isMonitoring && rmsEnergy > 0 ? rmsEnergy * 120 : 0;
         const freq = 0.025;
-        const y =
-          centerY +
-          Math.sin(x * freq + phase) * amp * (isAttackSimulated ? 1.4 : 1) +
-          (Math.random() - 0.5) * (isMonitoring ? 2.5 : 0.5);
+        const y = centerY + Math.sin(x * freq + phase) * amp;
 
         if (x === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);

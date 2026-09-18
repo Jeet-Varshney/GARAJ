@@ -18,7 +18,7 @@ export interface LatencyMetric {
 
 export interface PipelineSpec {
   wsConnection: 'CONNECTED' | 'DISCONNECTED' | 'CONNECTING';
-  streamingStatus: 'IDLE' | 'LIVE_STREAMING' | 'ANALYZING' | 'TEST_SIGNAL';
+  streamingStatus: 'IDLE' | 'LIVE_STREAMING' | 'ANALYZING' | 'TEST_SIGNAL' | 'PAUSED';
   audioEngine: string;
   audioFormat: string;
   sampleRate: number;

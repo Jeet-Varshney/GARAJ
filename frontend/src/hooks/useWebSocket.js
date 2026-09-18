@@ -19,6 +19,13 @@ export function useWebSocket(url = getDefaultWsUrl()) {
   const sequenceIdRef = useRef(0);
   const isManuallyClosedRef = useRef(false);
 
+  const clearTelemetry = useCallback(() => {
+    setLatestTelemetry(null);
+    setRoundTripLatency(0);
+    setSentChunksCount(0);
+    sequenceIdRef.current = 0;
+  }, []);
+
   const connect = useCallback(() => {
     if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
       return;
@@ -32,6 +39,7 @@ export function useWebSocket(url = getDefaultWsUrl()) {
       ws.binaryType = 'arraybuffer';
 
       ws.onopen = () => {
+        console.log('[WS] connected');
         setConnectionStatus('CONNECTED');
         sequenceIdRef.current = 0;
         setSentChunksCount(0);
@@ -85,7 +93,8 @@ export function useWebSocket(url = getDefaultWsUrl()) {
       wsRef.current = null;
     }
     setConnectionStatus('DISCONNECTED');
-  }, []);
+    clearTelemetry();
+  }, [clearTelemetry]);
 
   const sendAudioChunk = useCallback((pcmArrayBuffer) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
@@ -105,7 +114,9 @@ export function useWebSocket(url = getDefaultWsUrl()) {
     combinedBuffer.set(new Uint8Array(pcmArrayBuffer), headerBuffer.byteLength);
 
     wsRef.current.send(combinedBuffer.buffer);
-    setSentChunksCount(seqId + 1);
+    const nextCount = seqId + 1;
+    setSentChunksCount(nextCount);
+    console.log('[WS TX] chunks increasing', nextCount);
     return true;
   }, []);
 
@@ -126,5 +137,6 @@ export function useWebSocket(url = getDefaultWsUrl()) {
     connect,
     disconnect,
     sendAudioChunk,
+    clearTelemetry,
   };
 }

@@ -21,8 +21,9 @@ export function useGarajSecurity() {
   const [showTerminal, setShowTerminal] = useState<boolean>(true);
   const [logs, setLogs] = useState<TerminalLogEntry[]>([]);
   const [recentActivities, setRecentActivities] = useState<ActivityItem[]>([]);
+  const [isPaused, setIsPaused] = useState<boolean>(false);
 
-  // Existing Real GARAJ WebSocket Hook
+  // Real GARAJ WebSocket Hook
   const {
     connectionStatus,
     latestTelemetry,
@@ -30,13 +31,15 @@ export function useGarajSecurity() {
     sentChunksCount,
     connect,
     sendAudioChunk,
+    clearTelemetry,
   } = useWebSocket();
 
-  // Existing Real GARAJ Audio Streamer Hook
+  // Real GARAJ Audio Streamer Hook
   const {
     isStreaming,
     isSimulated,
-    audioSourceType,
+    hasMicPermission,
+    permissionError,
     clientAudioStats,
     startStreaming,
     startSimulatedStreaming,
@@ -53,29 +56,50 @@ export function useGarajSecurity() {
     connect();
   }, [connect]);
 
-  // Handle monitoring toggle (Start/Stop Live Mic)
-  const toggleMonitoring = useCallback(async (_val?: boolean) => {
+  // Operational State Control Functions:
+  // PAUSED: stop streaming audio, preserve latestTelemetry intact
+  const pauseDetection = useCallback(() => {
+    stopStreaming();
+    setIsPaused(true);
+  }, [stopStreaming]);
+
+  // RESUMED / RUNNING: restart streaming audio, resume backend inference updates
+  const resumeDetection = useCallback(async () => {
+    setIsPaused(false);
     if (connectionStatus !== 'CONNECTED') {
       connect();
     }
+    await startStreaming();
+  }, [connectionStatus, connect, startStreaming]);
+
+  // STOPPED: stop streaming, clear session & telemetry
+  const stopDetection = useCallback(() => {
+    stopStreaming();
+    setIsPaused(false);
+    clearTelemetry();
+  }, [stopStreaming, clearTelemetry]);
+
+  // Toggle function for UI Start/Pause/Resume button
+  const toggleMonitoring = useCallback(async (_val?: boolean) => {
     if (isStreaming) {
-      stopStreaming();
+      pauseDetection();
     } else {
-      await startStreaming();
+      await resumeDetection();
     }
-  }, [connectionStatus, connect, isStreaming, startStreaming, stopStreaming]);
+  }, [isStreaming, pauseDetection, resumeDetection]);
 
   // Handle Test Signal toggle (Simulation mode)
   const toggleAttackSimulation = useCallback((_val?: boolean) => {
-    if (connectionStatus !== 'CONNECTED') {
-      connect();
-    }
     if (isSimulated) {
-      stopStreaming();
+      stopDetection();
     } else {
+      if (connectionStatus !== 'CONNECTED') {
+        connect();
+      }
+      setIsPaused(false);
       startSimulatedStreaming();
     }
-  }, [connectionStatus, connect, isSimulated, startSimulatedStreaming, stopStreaming]);
+  }, [connectionStatus, connect, isSimulated, startSimulatedStreaming, stopDetection]);
 
   // Live Spectrum & RMS computation from analyserNode
   const [spectrumData, setSpectrumData] = useState<Uint8Array>(new Uint8Array(32).fill(0));
@@ -104,11 +128,7 @@ export function useGarajSecurity() {
         }
         setSpectrumData(mockSpectrum);
       } else {
-        const mockSpectrum = new Uint8Array(32);
-        for (let i = 0; i < 32; i++) {
-          mockSpectrum[i] = Math.floor(Math.sin(Date.now() * 0.005 + i * 0.3) * 35 + 45);
-        }
-        setSpectrumData(mockSpectrum);
+        setSpectrumData(new Uint8Array(32).fill(0));
       }
 
       const rmsVal = parseFloat(clientAudioStats.lastPcmRms) || 0;
@@ -125,7 +145,7 @@ export function useGarajSecurity() {
     };
   }, [isStreaming, analyserNode, clientAudioStats]);
 
-  // TASK 5: Log WebSocket message telemetry verification fields
+  // Log WebSocket message telemetry verification fields
   useEffect(() => {
     if (!latestTelemetry) return;
     const det = latestTelemetry.detection || {};
@@ -143,56 +163,86 @@ export function useGarajSecurity() {
     );
   }, [latestTelemetry]);
 
-  // TASK 8: Implement strict 4-level State Hierarchy:
-  // 1. DISCONNECTED -> Backend Disconnected
-  // 2. CONNECTED + NO_AUDIO (mic off OR status=="NO_AUDIO" OR predicted_class=="NO_AUDIO") -> NO_AUDIO
-  // 3. CONNECTED + AUDIO BUT MODEL NOT READY (status=="ANALYZING") -> Waiting for detection
-  // 4. CONNECTED + VALID MODEL RESULT (status=="MODEL_READY" & real_probability != null) -> Show actual REAL/SYNTHETIC result
-  const detection = latestTelemetry?.detection || {};
+  // Operational State Machine:
+  // - RUNNING: isStreaming = true, isPaused = false
+  // - PAUSED: isStreaming = false, isPaused = true (preserves latestTelemetry snapshot)
+  // - STOPPED: isStreaming = false, isPaused = false (telemetry cleared)
   const isWsConnected = connectionStatus === 'CONNECTED';
+  const detection = latestTelemetry?.detection || {};
   const detStatus = detection.status || 'NO_AUDIO';
   const detClass = detection.predicted_class || 'NO_AUDIO';
-  const hasValidProb = detection.real_probability !== undefined && detection.real_probability !== null;
 
-  let stateMode: 'DISCONNECTED' | 'NO_AUDIO' | 'ANALYZING' | 'MODEL_READY' = 'DISCONNECTED';
-  let verdict: VerdictStatus | string = 'Backend Disconnected';
+  const hasFiniteProb = typeof detection.real_probability === 'number' && Number.isFinite(detection.real_probability) &&
+                        typeof detection.synthetic_probability === 'number' && Number.isFinite(detection.synthetic_probability);
+
+  let stateMode: 'MIC_PERMISSION_DENIED' | 'MIC_PERMISSION_GRANTED' | 'AUDIO_STREAMING' | 'MODEL_READY' | 'PAUSED' | 'DISCONNECTED' = 'DISCONNECTED';
+  let verdict: VerdictStatus | string = 'BACKEND DISCONNECTED';
   let riskLevel: RiskLevel | string = 'NO_AUDIO';
   let realProb: number | null = null;
   let synthProb: number | null = null;
   let riskScore: number | null = null;
   let authenticityScore: number | null = null;
 
-  if (!isWsConnected) {
+  if (!isWsConnected && !isPaused) {
     stateMode = 'DISCONNECTED';
-    verdict = 'Backend Disconnected';
+    verdict = 'BACKEND DISCONNECTED';
     riskLevel = 'NO_AUDIO';
-  } else if (!isStreaming || detStatus === 'NO_AUDIO' || detClass === 'NO_AUDIO') {
-    stateMode = 'NO_AUDIO';
-    verdict = 'NO_AUDIO';
+  } else if (permissionError || (!hasMicPermission && !isSimulated && isStreaming)) {
+    stateMode = 'MIC_PERMISSION_DENIED';
+    verdict = 'MICROPHONE ACCESS REQUIRED';
     riskLevel = 'NO_AUDIO';
-  } else if (detStatus === 'ANALYZING' || detClass === 'ANALYZING' || !hasValidProb) {
-    stateMode = 'ANALYZING';
-    verdict = 'Waiting for detection';
+  } else if (isPaused) {
+    // PAUSED STATE: If we have a valid previous model result from backend, PRESERVE IT AS FROZEN SNAPSHOT!
+    stateMode = 'PAUSED';
+    if (hasFiniteProb) {
+      verdict = detClass as VerdictStatus;
+      const rProb = detection.real_probability as number;
+      const sProb = detection.synthetic_probability as number;
+      realProb = rProb;
+      synthProb = sProb;
+      riskScore = detection.risk_score !== undefined && detection.risk_score !== null
+        ? detection.risk_score
+        : Math.round(sProb * 10000) / 100;
+      authenticityScore = Math.round(rProb * 100);
+      riskLevel = 'DETECTION PAUSED';
+    } else {
+      verdict = 'DETECTION PAUSED';
+      riskLevel = 'DETECTION PAUSED';
+    }
+  } else if (!isStreaming) {
+    stateMode = 'MIC_PERMISSION_GRANTED';
+    verdict = 'NO AUDIO DETECTED';
+    riskLevel = 'NO_AUDIO';
+  } else if (clientAudioStats.pcmChunkCount === 0 || sentChunksCount === 0) {
+    stateMode = 'MIC_PERMISSION_GRANTED';
+    verdict = 'NO AUDIO DETECTED';
+    riskLevel = 'NO_AUDIO';
+  } else if (detStatus === 'NO_AUDIO' || detClass === 'NO_AUDIO' || !hasFiniteProb) {
+    stateMode = 'AUDIO_STREAMING';
+    verdict = 'WAITING FOR AUDIO';
     riskLevel = 'ACCUMULATING BUFFER';
   } else {
+    // RUNNING + MODEL_READY
     stateMode = 'MODEL_READY';
     verdict = detClass as VerdictStatus;
-    realProb = detection.real_probability;
-    synthProb = detection.synthetic_probability;
+    const rProb = detection.real_probability as number;
+    const sProb = detection.synthetic_probability as number;
+    realProb = rProb;
+    synthProb = sProb;
     riskScore = detection.risk_score !== undefined && detection.risk_score !== null
       ? detection.risk_score
-      : (synthProb !== null ? Math.round(synthProb * 10000) / 100 : null);
-    authenticityScore = realProb !== null ? Math.round(realProb * 100) : null;
+      : Math.round(sProb * 10000) / 100;
+    authenticityScore = Math.round(rProb * 100);
     riskLevel = verdict === 'SYNTHETIC' ? 'HIGH RISK' : 'LOW RISK';
   }
 
-  const isSynthetic = stateMode === 'MODEL_READY' && verdict === 'SYNTHETIC';
-  const isReal = stateMode === 'MODEL_READY' && verdict === 'REAL';
+  const isSynthetic = (stateMode === 'MODEL_READY' || stateMode === 'PAUSED') && verdict === 'SYNTHETIC';
+  const isReal = (stateMode === 'MODEL_READY' || stateMode === 'PAUSED') && verdict === 'REAL';
 
   const audioMetrics = detection.audio_metrics || {};
   const consecutiveDiff = detection.consecutive_diff || null;
 
-  // Real Verified Checks
+  // Real Diagnostic Checks
   const checks: SecurityCheckItem[] = [
     {
       id: 'audio-energy-gate',
@@ -213,19 +263,27 @@ export function useGarajSecurity() {
       label: 'W2V2-AASIST Neural Model Pass',
       status: isReal ? 'Normal' : isSynthetic ? 'Failed' : 'Normal',
       description: 'XLS-R 300M + Graph Attention spectro-temporal evaluation',
-      value: realProb !== null && synthProb !== null
+      value: (stateMode === 'MODEL_READY' || (stateMode === 'PAUSED' && hasFiniteProb)) && realProb !== null && synthProb !== null
         ? `Real: ${(realProb * 100).toFixed(1)}% | Spoof: ${(synthProb * 100).toFixed(1)}%`
-        : !isWsConnected ? 'Backend Disconnected' : 'Waiting for 64,600 samples...',
+        : !isWsConnected && !isPaused
+        ? 'BACKEND DISCONNECTED'
+        : stateMode === 'MIC_PERMISSION_DENIED'
+        ? 'MICROPHONE ACCESS REQUIRED'
+        : stateMode === 'PAUSED'
+        ? 'DETECTION PAUSED'
+        : stateMode === 'MIC_PERMISSION_GRANTED'
+        ? 'NO AUDIO DETECTED'
+        : 'WAITING FOR AUDIO',
     },
   ];
 
   // Pipeline spec
   const pipelineSpec: PipelineSpec = {
     wsConnection: connectionStatus === 'CONNECTED' ? 'CONNECTED' : connectionStatus === 'CONNECTING' ? 'CONNECTING' : 'DISCONNECTED',
-    streamingStatus: isStreaming ? (isSimulated ? 'TEST_SIGNAL' : 'LIVE_STREAMING') : 'IDLE',
+    streamingStatus: isPaused ? 'PAUSED' : isStreaming ? (isSimulated ? 'TEST_SIGNAL' : 'LIVE_STREAMING') : 'IDLE',
     audioEngine: isSimulated
       ? 'Simulation'
-      : (audioSourceType === 'caller_audio' ? 'Caller/System Capture (AudioWorklet)' : 'Local Mic (AudioWorklet)'),
+      : 'Local Mic (AudioWorklet)',
     audioFormat: '16 kHz Mono PCM_S16LE',
     sampleRate: 16000,
     channels: 1,
@@ -253,7 +311,7 @@ export function useGarajSecurity() {
     architecture: detection.model || 'W2V2-AASIST (XLS-R 300M + AASIST Graph Attention)',
     requiredInputSamples: detection.required_samples || 64600,
     inputDurationSec: 4.04,
-    engineStatus: detection.status || (isWsConnected ? (isStreaming ? 'ANALYZING' : 'IDLE') : 'DISCONNECTED'),
+    engineStatus: stateMode,
     modelPrediction: verdict,
     inferenceLatencyMs: computeLatency,
     spoofProb: synthProb !== null ? synthProb : 0,
@@ -263,7 +321,7 @@ export function useGarajSecurity() {
   // Populate activities & logs from real WebSocket messages
   const prevSeqRef = useRef<number | null>(null);
   useEffect(() => {
-    if (!latestTelemetry || latestTelemetry.seq_id === undefined) return;
+    if (!latestTelemetry || latestTelemetry.seq_id === undefined || !isStreaming) return;
     if (latestTelemetry.seq_id === prevSeqRef.current) return;
     prevSeqRef.current = latestTelemetry.seq_id;
 
@@ -278,7 +336,7 @@ export function useGarajSecurity() {
       eventMsg = `ALERT: Spoof voice detected in chunk #${seqId}`;
       actStatus = 'error';
     } else if (detClass === 'REAL') {
-      eventMsg = `Real voice verified in chunk #${seqId} (${(realProb! * 100).toFixed(1)}%)`;
+      eventMsg = `Real voice verified in chunk #${seqId} (${(realProb ? (realProb * 100).toFixed(1) : '0')}% )`;
       actStatus = 'success';
     }
 
@@ -301,10 +359,14 @@ export function useGarajSecurity() {
         text: `[Chunk #${seqId}] Verdict: ${detClass} | Real Prob: ${realProb !== null ? (realProb * 100).toFixed(1) + '%' : 'N/A'} | Compute: ${computeLatency}ms`,
       },
     ]);
-  }, [latestTelemetry, realProb, computeLatency]);
+  }, [latestTelemetry, realProb, computeLatency, isStreaming]);
 
   return {
     isMonitoring: isStreaming,
+    isPaused,
+    pauseDetection,
+    resumeDetection,
+    stopDetection,
     setIsMonitoring: toggleMonitoring,
     isMicActive: isStreaming && !isSimulated,
     toggleMicrophone: toggleMonitoring,

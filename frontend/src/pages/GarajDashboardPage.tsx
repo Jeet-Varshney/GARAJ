@@ -12,6 +12,7 @@ import type { LayoutViewMode } from '../types/garaj';
 export const GarajDashboardPage: React.FC = () => {
   const {
     isMonitoring,
+    isPaused,
     setIsMonitoring,
     isMicActive,
     toggleMicrophone,
@@ -85,6 +86,7 @@ export const GarajDashboardPage: React.FC = () => {
                 checks={checks}
                 recentActivities={recentActivities}
                 isMonitoring={isMonitoring}
+                isPaused={isPaused}
                 onToggleMonitoring={() => setIsMonitoring(!isMonitoring)}
                 isAttackSimulated={isAttackSimulated}
                 onToggleAttack={() => setIsAttackSimulated(!isAttackSimulated)}
@@ -196,6 +198,7 @@ export const GarajDashboardPage: React.FC = () => {
                       checks={checks}
                       recentActivities={recentActivities}
                       isMonitoring={isMonitoring}
+                      isPaused={isPaused}
                       onToggleMonitoring={() => setIsMonitoring(!isMonitoring)}
                       isAttackSimulated={isAttackSimulated}
                       onToggleAttack={() => setIsAttackSimulated(!isAttackSimulated)}

@@ -26,6 +26,7 @@ interface VerdictPanelProps {
   checks: SecurityCheckItem[];
   recentActivities: ActivityItem[];
   isMonitoring: boolean;
+  isPaused?: boolean;
   onToggleMonitoring: () => void;
   isAttackSimulated: boolean;
   onToggleAttack: () => void;
@@ -38,14 +39,17 @@ export const VerdictPanel: React.FC<VerdictPanelProps> = ({
   checks,
   recentActivities,
   isMonitoring,
+  isPaused = false,
   onToggleMonitoring,
   isAttackSimulated,
   onToggleAttack,
 }) => {
   const isSynthetic = verdict === 'SYNTHETIC';
-  const isDisconnected = verdict === 'Backend Disconnected';
-  const isNoAudio = verdict === 'NO_AUDIO';
-  const isWaiting = verdict === 'Waiting for detection' || verdict === 'Waiting for detection...';
+  const isDisconnected = verdict === 'BACKEND DISCONNECTED' || verdict === 'Backend Disconnected';
+  const isNoAudio = verdict === 'NO AUDIO DETECTED' || verdict === 'NO_AUDIO' || verdict === 'No audio detected';
+  const isWaiting = verdict === 'WAITING FOR AUDIO' || verdict === 'Waiting for detection' || verdict === 'Waiting for detection...';
+  const isPausedState = isPaused || riskLevel === 'DETECTION PAUSED' || verdict === 'DETECTION PAUSED';
+  
   const hasScore = score !== null && score !== undefined && !isDisconnected && !isNoAudio && !isWaiting;
 
   const radius = 76;
@@ -56,16 +60,29 @@ export const VerdictPanel: React.FC<VerdictPanelProps> = ({
     <div className={`rounded-2xl p-6 border shadow-sm flex flex-col justify-between space-y-6 transition-all ${
       isSynthetic
         ? 'bg-red-50/30 border-red-400 shadow-red-100/80 ring-1 ring-red-400/50'
+        : isPausedState
+        ? 'bg-amber-50/20 border-amber-300'
         : 'bg-white border-zinc-200'
     }`}>
       {/* Critical Alert Banner when Non-Real / Spoof Voice Detected */}
-      {isSynthetic && (
+      {isSynthetic && !isPausedState && (
         <div className="bg-red-600 text-white font-mono text-[11px] font-extrabold py-2 px-3.5 rounded-xl flex items-center justify-between shadow-sm animate-pulse">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-white shrink-0" />
             <span>UNAUTHENTIC / SPOOF VOICE DETECTED</span>
           </div>
           <span className="bg-red-700 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider">CRITICAL ALERT</span>
+        </div>
+      )}
+
+      {/* Paused Banner when Detection Stream is Paused */}
+      {isPausedState && (
+        <div className="bg-amber-600 text-white font-mono text-[11px] font-extrabold py-2 px-3.5 rounded-xl flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-2">
+            <Pause className="w-4 h-4 text-white shrink-0 fill-current" />
+            <span>{hasScore ? 'DETECTION PAUSED — FROZEN SNAPSHOT' : 'DETECTION PAUSED'}</span>
+          </div>
+          <span className="bg-amber-700 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider">PAUSED</span>
         </div>
       )}
 
@@ -105,7 +122,7 @@ export const VerdictPanel: React.FC<VerdictPanelProps> = ({
               cx="100"
               cy="100"
               r={radius}
-              stroke={isSynthetic ? '#EF4444' : isDisconnected || isNoAudio ? '#D4D4D8' : isWaiting ? '#F59E0B' : '#09090B'}
+              stroke={isSynthetic ? '#EF4444' : isPausedState ? '#F59E0B' : isDisconnected || isNoAudio ? '#D4D4D8' : isWaiting ? '#F59E0B' : '#09090B'}
               strokeWidth="12"
               strokeDasharray={circumference}
               initial={{ strokeDashoffset: circumference }}
@@ -123,7 +140,7 @@ export const VerdictPanel: React.FC<VerdictPanelProps> = ({
               initial={{ scale: 0.85, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               className={`text-3xl sm:text-4xl font-extrabold tracking-tight font-sans ${
-                isSynthetic ? 'text-red-600' : isDisconnected || isNoAudio ? 'text-zinc-400' : 'text-zinc-950'
+                isSynthetic ? 'text-red-600' : isPausedState ? 'text-amber-700' : isDisconnected || isNoAudio ? 'text-zinc-400' : 'text-zinc-950'
               }`}
             >
               {hasScore ? `${score}%` : '--'}
@@ -132,6 +149,8 @@ export const VerdictPanel: React.FC<VerdictPanelProps> = ({
               className={`text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider mt-1 px-3 py-0.5 rounded-full border text-center truncate max-w-full ${
                 isSynthetic
                   ? 'text-red-600 bg-red-50 border-red-200'
+                  : isPausedState
+                  ? 'text-amber-800 bg-amber-50 border-amber-300'
                   : isDisconnected || isNoAudio
                   ? 'text-zinc-600 bg-zinc-100 border-zinc-200'
                   : isWaiting
@@ -155,6 +174,8 @@ export const VerdictPanel: React.FC<VerdictPanelProps> = ({
             className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold font-mono tracking-wide border ${
               riskLevel === 'HIGH RISK'
                 ? 'bg-red-50 text-red-600 border-red-200'
+                : isPausedState
+                ? 'bg-amber-50 text-amber-800 border-amber-300'
                 : isDisconnected || isNoAudio
                 ? 'bg-zinc-100 text-zinc-600 border-zinc-200'
                 : isWaiting
@@ -164,6 +185,8 @@ export const VerdictPanel: React.FC<VerdictPanelProps> = ({
           >
             {riskLevel === 'HIGH RISK' ? (
               <ShieldAlert className="w-4 h-4 text-red-600" />
+            ) : isPausedState ? (
+              <Pause className="w-4 h-4 text-amber-600 fill-current" />
             ) : isDisconnected || isNoAudio ? (
               <Radio className="w-4 h-4 text-zinc-400" />
             ) : isWaiting ? (
@@ -237,6 +260,11 @@ export const VerdictPanel: React.FC<VerdictPanelProps> = ({
             <>
               <Pause className="w-4 h-4 text-white fill-current" />
               <span>PAUSE MONITORING</span>
+            </>
+          ) : isPausedState ? (
+            <>
+              <Play className="w-4 h-4 text-white fill-current" />
+              <span>RESUME MONITORING</span>
             </>
           ) : (
             <>
