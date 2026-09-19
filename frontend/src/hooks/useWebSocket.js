@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 const getDefaultWsUrl = () => {
-  if (typeof window !== 'undefined') {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname || 'localhost';
-    return `${protocol}//${host}:8000/ws/stream`;
+  const apiUrl = import.meta.env.VITE_API_URL;
+
+  if (!apiUrl) {
+    console.error('[WS] VITE_API_URL is not configured');
+    return '';
   }
-  return `${import.meta.env.VITE_API_URL.replace(/^http/, 'ws')}/ws/stream`;
+
+  return `${apiUrl.replace(/^http/, 'ws')}/ws/stream`;
 };
 
 export function useWebSocket(url = getDefaultWsUrl()) {
