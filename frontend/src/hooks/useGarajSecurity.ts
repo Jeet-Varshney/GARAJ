@@ -217,9 +217,13 @@ export function useGarajSecurity() {
     stateMode = 'MIC_PERMISSION_GRANTED';
     verdict = 'NO AUDIO DETECTED';
     riskLevel = 'NO_AUDIO';
-  } else if (detStatus === 'NO_AUDIO' || detClass === 'NO_AUDIO' || !hasFiniteProb) {
+  } else if (detStatus === 'NO_AUDIO' || detClass === 'NO_AUDIO') {
     stateMode = 'AUDIO_STREAMING';
     verdict = 'WAITING FOR AUDIO';
+    riskLevel = 'NO_AUDIO';
+  } else if (detStatus === 'ANALYZING' || detClass === 'ANALYZING' || !hasFiniteProb) {
+    stateMode = 'AUDIO_STREAMING';
+    verdict = 'Waiting for detection';
     riskLevel = 'ACCUMULATING BUFFER';
   } else {
     // RUNNING + MODEL_READY
