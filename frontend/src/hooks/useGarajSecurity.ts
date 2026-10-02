@@ -168,12 +168,24 @@ export function useGarajSecurity() {
   // - PAUSED: isStreaming = false, isPaused = true (preserves latestTelemetry snapshot)
   // - STOPPED: isStreaming = false, isPaused = false (telemetry cleared)
   const isWsConnected = connectionStatus === 'CONNECTED';
-  const detection = latestTelemetry?.detection || {};
-  const detStatus = detection.status || 'NO_AUDIO';
-  const detClass = detection.predicted_class || 'NO_AUDIO';
+  const detection = latestTelemetry?.detection || latestTelemetry?.detection_stub || (latestTelemetry?.predicted_class ? latestTelemetry : {}) || {};
+  const detStatus = (detection.status || 'NO_AUDIO').toString().toUpperCase();
+  const rawDetClass = (detection.predicted_class || 'NO_AUDIO').toString().toUpperCase();
+  const detClass = rawDetClass === 'BONAFIDE' || rawDetClass === 'BONA-FIDE' ? 'REAL' : rawDetClass === 'SPOOF' ? 'SYNTHETIC' : rawDetClass;
 
-  const hasFiniteProb = typeof detection.real_probability === 'number' && Number.isFinite(detection.real_probability) &&
-                        typeof detection.synthetic_probability === 'number' && Number.isFinite(detection.synthetic_probability);
+  const parseProb = (val: any): number | null => {
+    if (val === null || val === undefined) return null;
+    if (typeof val === 'number') return Number.isFinite(val) ? val : null;
+    if (typeof val === 'string') {
+      const parsed = parseFloat(val);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  };
+
+  const realProbNum = parseProb(detection.real_probability);
+  const synthProbNum = parseProb(detection.synthetic_probability);
+  const hasFiniteProb = realProbNum !== null && synthProbNum !== null;
 
   let stateMode: 'MIC_PERMISSION_DENIED' | 'MIC_PERMISSION_GRANTED' | 'AUDIO_STREAMING' | 'MODEL_READY' | 'PAUSED' | 'DISCONNECTED' = 'DISCONNECTED';
   let verdict: VerdictStatus | string = 'BACKEND DISCONNECTED';
@@ -196,14 +208,11 @@ export function useGarajSecurity() {
     stateMode = 'PAUSED';
     if (hasFiniteProb) {
       verdict = detClass as VerdictStatus;
-      const rProb = detection.real_probability as number;
-      const sProb = detection.synthetic_probability as number;
-      realProb = rProb;
-      synthProb = sProb;
-      riskScore = detection.risk_score !== undefined && detection.risk_score !== null
-        ? detection.risk_score
-        : Math.round(sProb * 10000) / 100;
-      authenticityScore = Math.round(rProb * 100);
+      realProb = realProbNum;
+      synthProb = synthProbNum;
+      const parsedRisk = parseProb(detection.risk_score);
+      riskScore = parsedRisk !== null ? parsedRisk : Math.round((synthProbNum ?? 0) * 10000) / 100;
+      authenticityScore = Math.round((realProbNum ?? 0) * 100);
       riskLevel = 'DETECTION PAUSED';
     } else {
       verdict = 'DETECTION PAUSED';
@@ -221,23 +230,24 @@ export function useGarajSecurity() {
     stateMode = 'AUDIO_STREAMING';
     verdict = 'WAITING FOR AUDIO';
     riskLevel = 'NO_AUDIO';
-  } else if (detStatus === 'ANALYZING' || detClass === 'ANALYZING' || !hasFiniteProb) {
+  } else if ((detStatus === 'ANALYZING' || detClass === 'ANALYZING') && !hasFiniteProb) {
     stateMode = 'AUDIO_STREAMING';
     verdict = 'Waiting for detection';
     riskLevel = 'ACCUMULATING BUFFER';
-  } else {
+  } else if (hasFiniteProb) {
     // RUNNING + MODEL_READY
     stateMode = 'MODEL_READY';
     verdict = detClass as VerdictStatus;
-    const rProb = detection.real_probability as number;
-    const sProb = detection.synthetic_probability as number;
-    realProb = rProb;
-    synthProb = sProb;
-    riskScore = detection.risk_score !== undefined && detection.risk_score !== null
-      ? detection.risk_score
-      : Math.round(sProb * 10000) / 100;
-    authenticityScore = Math.round(rProb * 100);
+    realProb = realProbNum;
+    synthProb = synthProbNum;
+    const parsedRisk = parseProb(detection.risk_score);
+    riskScore = parsedRisk !== null ? parsedRisk : Math.round((synthProbNum ?? 0) * 10000) / 100;
+    authenticityScore = Math.round((realProbNum ?? 0) * 100);
     riskLevel = verdict === 'SYNTHETIC' ? 'HIGH RISK' : 'LOW RISK';
+  } else {
+    stateMode = 'AUDIO_STREAMING';
+    verdict = 'Waiting for detection';
+    riskLevel = 'ACCUMULATING BUFFER';
   }
 
   const isSynthetic = (stateMode === 'MODEL_READY' || stateMode === 'PAUSED') && verdict === 'SYNTHETIC';

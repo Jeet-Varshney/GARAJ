@@ -4,11 +4,17 @@ const getDefaultWsUrl = () => {
   const apiUrl = import.meta.env.VITE_API_URL;
 
   if (!apiUrl) {
+    if (typeof window !== 'undefined' && window.location && window.location.host) {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      return `${protocol}//${window.location.host}/ws/stream`;
+    }
     console.error('[WS] VITE_API_URL is not configured');
     return '';
   }
 
-  return `${apiUrl.replace(/^http/, 'ws')}/ws/stream`;
+  const cleanApiUrl = apiUrl.replace(/\/+$/, '');
+  const wsUrl = cleanApiUrl.replace(/^http/, 'ws');
+  return `${wsUrl}/ws/stream`;
 };
 
 export function useWebSocket(url = getDefaultWsUrl()) {
