@@ -173,18 +173,15 @@ export function useGarajSecurity() {
   const rawDetClass = (detection.predicted_class || 'NO_AUDIO').toString().toUpperCase();
   const detClass = rawDetClass === 'BONAFIDE' || rawDetClass === 'BONA-FIDE' ? 'REAL' : rawDetClass === 'SPOOF' ? 'SYNTHETIC' : rawDetClass;
 
-  const parseProb = (val: any): number | null => {
+  const parseNumericField = (val: unknown): number | null => {
     if (val === null || val === undefined) return null;
-    if (typeof val === 'number') return Number.isFinite(val) ? val : null;
-    if (typeof val === 'string') {
-      const parsed = parseFloat(val);
-      return Number.isFinite(parsed) ? parsed : null;
-    }
-    return null;
+    if (typeof val === 'string' && val.trim() === '') return null;
+    const num = Number(val);
+    return Number.isFinite(num) ? num : null;
   };
 
-  const realProbNum = parseProb(detection.real_probability);
-  const synthProbNum = parseProb(detection.synthetic_probability);
+  const realProbNum = parseNumericField(detection.real_probability);
+  const synthProbNum = parseNumericField(detection.synthetic_probability);
   const hasFiniteProb = realProbNum !== null && synthProbNum !== null;
 
   let stateMode: 'MIC_PERMISSION_DENIED' | 'MIC_PERMISSION_GRANTED' | 'AUDIO_STREAMING' | 'MODEL_READY' | 'PAUSED' | 'DISCONNECTED' = 'DISCONNECTED';
@@ -210,7 +207,7 @@ export function useGarajSecurity() {
       verdict = detClass as VerdictStatus;
       realProb = realProbNum;
       synthProb = synthProbNum;
-      const parsedRisk = parseProb(detection.risk_score);
+      const parsedRisk = parseNumericField(detection.risk_score);
       riskScore = parsedRisk !== null ? parsedRisk : Math.round((synthProbNum ?? 0) * 10000) / 100;
       authenticityScore = Math.round((realProbNum ?? 0) * 100);
       riskLevel = 'DETECTION PAUSED';
@@ -240,7 +237,7 @@ export function useGarajSecurity() {
     verdict = detClass as VerdictStatus;
     realProb = realProbNum;
     synthProb = synthProbNum;
-    const parsedRisk = parseProb(detection.risk_score);
+    const parsedRisk = parseNumericField(detection.risk_score);
     riskScore = parsedRisk !== null ? parsedRisk : Math.round((synthProbNum ?? 0) * 10000) / 100;
     authenticityScore = Math.round((realProbNum ?? 0) * 100);
     riskLevel = verdict === 'SYNTHETIC' ? 'HIGH RISK' : 'LOW RISK';
